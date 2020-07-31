@@ -1,10 +1,6 @@
 import requests
-#from lxml import etree
 import os
 import json
-#from bs4 import BeautifulSoup
-from requests import exceptions
-import re
 import time
 
 
