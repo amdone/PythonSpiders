@@ -3,12 +3,13 @@ import aiohttp
 import asyncio
 import time
 
+# 先访问jjgirl找到要下载的girl的名字，在浏览器地址栏中可见
+# 将该girl照片的开始页码和结束页码填写到下面
 girl_name = 'miku-ohashi'
 page_start = 1
 page_end = 63
 
 os.makedirs('./'+girl_name+'/',exist_ok=True)
-
 
 urls = []
 
