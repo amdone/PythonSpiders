@@ -4,6 +4,7 @@ import json
 import time
 
 # 确保正确安装了annie以及ffmpeg
+# https://github.com/iawia002/annie
 # annie用来下载视频，并依赖ffmpeg用来合并视频
 # 然后配置以下信息
 space_num = 546195  # 进入up主的主页，在浏览器的地址栏就可以找到空间号, 以up主“老番茄”为例
