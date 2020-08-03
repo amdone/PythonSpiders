@@ -14,7 +14,7 @@ UseCookie = True
 DownImg = True
 DownText = False
 DownVideo = False
-twitter_url = "https://twitter.com/Elisa1203vip"
+twitter_url = ""
 
 
 with open('./cookie.json', 'r', encoding='utf8')as fp:
