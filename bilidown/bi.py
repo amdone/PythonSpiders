@@ -1,15 +1,47 @@
-import requests
 import os
+import sys
 import json
 import time
+import requests
 
 # 确保正确安装了annie以及ffmpeg
-# https://github.com/iawia002/annie
+# annie : https://github.com/iawia002/annie
 # annie用来下载视频，并依赖ffmpeg用来合并视频
+# 利用命令 python3 bi.py 123456 下载空间号为123456用户的所有视频
+# 利用命令 python3 bi.py 123456 /home/bilibili 下载空间号为123456用户的所有视频到/home/bilibili文件夹下
+
 # 然后配置以下信息
-space_num = 546195  # 进入up主的主页，在浏览器的地址栏就可以找到空间号, 以up主“老番茄”为例
-#cookie_path = "./bilibilicookie.txt"  # 利用cookie下载最高画质视频
-cookie_path = "" #没有大会员就不填
+space_num = None  # 进入up主的主页，在浏览器的地址栏就可以找到空间号, 以up主“老番茄”为例
+down_dir = None  # 下载到哪个文件夹内
+default_down_dir = "/home/myod/bili/UP主"
+cookie_path = "/home/configs/bilibilicookie.txt"  # 利用cookie下载最高画质视频
+# cookie_path = "" #没有大会员就不填
+
+try:
+    space_num = sys.argv[1]
+    down_dir = sys.argv[2]
+except:
+    pass
+
+if space_num:
+    pass
+else:
+    print("must input space_num")
+    exit()
+if down_dir:
+    if os.path.exists(down_dir):
+        print("down path has already existed!But that is ok!")
+        pass
+    else:
+        os.mkdir(down_dir)
+else:
+    down_dir = default_down_dir
+    if os.path.exists(down_dir):
+        print("down path has already existed!But that is ok!")
+        pass
+    else:
+        os.mkdir(down_dir)
+
 
 def download_page(url):
     headers = {
@@ -74,9 +106,9 @@ def get_video_av_list(arg_space_num):
 def annie_all_video(arg_up_name, av_list):
     count = 1
     if cookie_path is None:
-        annie_cmd = "annie -o ./" + arg_up_name + "/ -p "
+        annie_cmd = "annie -o " + down_dir + "/" + arg_up_name + "/ -p "
     else:
-        annie_cmd = "annie -o ./" + arg_up_name + "/ -c " + cookie_path + " -p "
+        annie_cmd = "annie -o " + down_dir + "/" + arg_up_name + "/ -c " + cookie_path + " -p "
     for av in av_list:
         print("[" + str(count) + "]" + av + " start...")
         os.system(annie_cmd + av)
@@ -90,6 +122,7 @@ if __name__ == '__main__':
     avlist = get_video_av_list(space_num)
     print("Find " + str(len(avlist)) + " videos")
     print("Download start...")
-    os.makedirs('./' + up_name + '/', exist_ok=True)
+    if not os.path.isdir(down_dir + "/" + up_name):
+        os.mkdir(down_dir + "/" + up_name)
     annie_all_video(up_name, avlist)
     print("All  done!")
