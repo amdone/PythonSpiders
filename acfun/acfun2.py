@@ -32,7 +32,7 @@ db_dir = '/home/configs/acfun'
 wdb_path = './ac_data'
 wdb_dir = './ac_data'
 
-opts, args = getopt.getopt(sys.argv[2:], 'c:g:d:', ['up=', 'gd=', 'od=', 'gd', 'od', 'all'])
+opts, args = getopt.getopt(sys.argv[3:], 'c:g:d:', ['up=', 'gd=', 'od=', 'gd', 'od', 'all'])
 
 for o, a in opts:
     if o == '-c':
@@ -41,6 +41,8 @@ for o, a in opts:
         CloudName = 'od'
     if o == '-g':
         CloudName = 'gd'
+
+print(CloudName)
 
 if platform.system() == 'Windows':
     db_path = wdb_path
@@ -60,8 +62,6 @@ except:
     path = './'
     pass
 
-
-
 try:
     firstArgeement = sys.argv[1]
 except:
@@ -75,18 +75,6 @@ else:
     IsAcno = False
     acer_no = firstArgeement
 
-# get configs from config.ini
-
-# read configuration from local database
-if not os.path.isdir(db_dir):
-    os.makedirs(db_dir)
-if not os.path.isfile(db_path + '.dat'):
-    with closing(shelve.open(db_path, 'c')) as sf:
-        sf['ac_data'] = ac_data
-else:
-    with closing(shelve.open(db_path, 'r')) as sf:
-        ac_data = sf['ac_data']
-
 
 def concaturl(head, params):
     '''
@@ -96,6 +84,12 @@ def concaturl(head, params):
     for k in params.keys():
         url = url + k + '=' + params[k] + '&'
     return head + url[:-1]
+
+
+def formatfilename(file_name: str):
+    file_name = file_name.replace('?', '_问号_').replace('？', '_问号_').replace('：', '_冒号_')
+    restr = re.findall(r'[^\*"/:?\\|<>]', file_name, re.S)
+    return ''.join(restr)
 
 
 def bigThanDate(str_date1: str, str_date2: str):
@@ -118,16 +112,26 @@ class Sql_Acer:
     '''
 
     def __init__(self, acerid):
-        self.acerid = acerid
-        self.conn = sqlite3.connect('./acfun_data.db')
-        self.cur = self.conn.cursor()
-        try:
+        if not os.path.isfile('./acfun_data.db'):
+            self.conn = sqlite3.connect('./acfun_data.db')
+            self.cur = self.conn.cursor()
             self.cur.execute('''create table acer(acno varchar(20) primary key, acerid integer,
                              acname varchar(20),  title varchar(40),
                              uploadtime integer)
                              ''')
-        except:
-            pass
+            self.conn.commit()
+            self.cur.close()
+            self.conn.close()
+        self.acerid = acerid
+        self.conn = sqlite3.connect('./acfun_data.db')
+        self.cur = self.conn.cursor()
+        # try:
+        #     self.cur.execute('''create table acer(acno varchar(20) primary key, acerid integer,
+        #                      acname varchar(20),  title varchar(40),
+        #                      uploadtime integer)
+        #                      ''')
+        # except:
+        #     pass
 
     def insert_video(self, acno, name, title, uploadtime):
         sql_seq = '''insert into acer(acerid, acno, acname, title, uploadtime)values({},'{}','{}','{}',{})'''.format(
@@ -218,7 +222,7 @@ class user():
             part_list = v['videoList']
             Sql_Acer(self.space_no).insert_video('ac' + v['dougaId'], acer_name, v['title'], part_list[0]['uploadTime'])
             down_list.append('ac' + v['dougaId'])
-            #vlist[v['dougaId']] = v['title']
+            # vlist[v['dougaId']] = v['title']
             # uploadTime = v['videoList']['uploadTime']
             newest_uploadTime = Sql_Acer(self.space_no).get_newest_uploadTime()
             if int(part_list[0]['uploadTime']) > newest_uploadTime:
@@ -280,7 +284,7 @@ class m3u8_url():
         if '_' in self.url:
             name = name + '_P' + self.url[-1:]
             # print(name)
-        return name, video_info[0]['url'], path
+        return formatfilename(name), video_info[0]['url'], path
         # Download(name + '[{}]'.format(Label[choice]), video_info[choice - 1]['url'], path).start_download()
 
 
@@ -470,10 +474,11 @@ if __name__ == '__main__':
             pass
         else:
             path += acer + '/'
+        print(path)
         for i, v in enumerate(down_videos_list):
             print(str(i) + ' ---> ' + v)
             fin_name, fin_url, fin_path = m3u8_url(url_syntax.format(v)).get_m3u8()
-            # # print((fin_url, fin_name))
+            print(fin_name)
             M3u8Download(fin_url, fin_name)
             # if not path == '':
             #     shutil.move('{}.mp4'.format(fin_name), fin_path + '{}.mp4'.format(fin_name))
@@ -485,6 +490,4 @@ if __name__ == '__main__':
                 os.system(cmd)
                 os.remove(path + fin_name + '.mp4')
 
-    with closing(shelve.open(db_path, 'c')) as sf:
-        sf['ac_data'] = ac_data
 
