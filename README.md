@@ -39,9 +39,9 @@ gd 谷歌云盘的配置名
 
 #### twitter2.py
 
-python twitter2.py
+python twitter2.py <id>
 
-将该文件中的twerID设置为要爬取的推主的id
+将<id>设置为要爬取的推主的id
 
 然后运行即可
 
