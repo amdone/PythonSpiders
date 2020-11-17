@@ -1,45 +1,64 @@
-import json
 import os
 import re
 import csv
-from getpass import getpass
-from time import sleep
-
+import sys
+import json
+import getopt
+import sqlite3
 import requests
-from selenium.common.exceptions import NoSuchElementException
+from time import sleep
+from Sql_Tweets import Sql_Tweet
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
-
+from selenium.common.exceptions import NoSuchElementException
 
 # create some value for easy use:
 imgUrls = set()
-twerID = "iJoycebabe"
+videoUrls = set()
+twerID = ""
 twerName = ""
 twitter_url = "https://twitter.com"
-twitter_url = "https://twitter.com/ry01204"
+# twitter_url = "https://twitter.com/"
 twerDescription = ""
 twerCreatedDate = ""
 twerFans = ""
 twerLocation = ""
 timeSet = set()
 imgcc = 0
+CloudName = ""
+
+try:
+    twerID = sys.argv[1]
+except:
+    print("please give me a ID")
+    sys.exit(0)
+
+opts, args = getopt.getopt(sys.argv[2:], 'u:g:d:', ['up=', 'gd=', 'od=', 'gd', 'od', 'all'])
+
+for o, a in opts:
+    if o == '-u':
+        CloudName = a
+    if o == '-d':
+        CloudName = 'od'
+    if o == '-g':
+        CloudName = 'gd'
 
 # chrome start setting
 chrome_options = Options()
-
 chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-gpu')
 chrome_options.add_argument('--no-sandbox')  # root用户不加这条会无法运行
 chrome_options.add_argument('--disable-dev-shm-usage')
 driver = webdriver.Chrome(chrome_options=chrome_options)
-#driver.set_window_size(480, 1080)
-
+driver.set_window_size(480, 1080)
 
 # get cookie,twerlist form files
-
-with open('cookie.json', 'r', encoding='utf8')as fp:
-    cookieData = json.load(fp)
+try:
+    with open('cookie.json', 'r', encoding='utf8')as fp:
+        cookieData = json.load(fp)
+except:
+    print("Warning: cannot load cookie file...")
 
 
 def img_url_fomat(img_url):
@@ -75,22 +94,33 @@ def get_down_img(url, imgs_dirname):
 
 
 def get_tweet_data(card):
-    global imgcc
+    video_url = ''
+    tweet_time_id = ''
     """Extract data from tweet card"""
     try:
         username = card.find_element_by_xpath('.//span').text
     except:
         return
     try:
-        handle = card.find_element_by_xpath('.//span[contains(text(), "@")]').text
+        handle = card.find_element_by_xpath('.//span[contains(text(), "@")]').text.replace('@', '')
     except NoSuchElementException:
         return
 
     try:
         postdate = card.find_element_by_xpath('.//time').get_attribute('datetime')
+        reslist = re.findall('\d+', postdate)
+        tweet_time_id = ''.join(reslist)
+        #print(tweet_time_id)
     except NoSuchElementException:
         return
-
+    try:
+        tweet_url = card.find_element_by_xpath('.//a[@dir="auto"]').get_attribute('href')
+        # print(tweet_url)
+        if card.find_element_by_xpath('.//video'):
+            video_url = tweet_url
+            # print(video_url)
+    except:
+        pass
     comment = card.find_element_by_xpath('.//div[2]/div[2]/div[1]').text
     responding = card.find_element_by_xpath('.//div[2]/div[2]/div[2]').text
     text = comment + responding
@@ -98,16 +128,13 @@ def get_tweet_data(card):
     retweet_cnt = card.find_element_by_xpath('.//div[@data-testid="retweet"]').text
     like_cnt = card.find_element_by_xpath('.//div[@data-testid="like"]').text
     imgs = card.find_elements_by_xpath('.//img')
-    img_urls = [i.get_attribute('src') for i in imgs if i.get_attribute('src').startswith('https://pbs.twimg.com/media/')]
+    img_urls = [i.get_attribute('src') for i in imgs if
+                i.get_attribute('src').startswith('https://pbs.twimg.com/media/')]
     # img_urls = [img_url_fomat(i)+'@' for i in img_urls if img_url_fomat(i)]
-    img_url = ''.join([img_url_fomat(i)+'@' for i in img_urls if img_url_fomat(i)])
+    img_url = ''.join([img_url_fomat(i) + '@' for i in img_urls if img_url_fomat(i)])
     for i in img_urls:
         if img_url_fomat(i):
             imgUrls.add(img_url_fomat(i))
-    a = len(imgUrls)
-    if not a == imgcc:
-        print('imgs: {}'.format(a))
-        imgcc = a
 
     # get a string of all emojis contained in the tweet
     """Emojis are stored as images... so I convert the filename, which is stored as unicode, into 
@@ -123,30 +150,27 @@ def get_tweet_data(card):
         if emoji:
             emoji_list.append(emoji)
     emojis = ' '.join(emoji_list)
-
-    tweet = (username, handle, postdate, text, emojis, reply_cnt, retweet_cnt, like_cnt, img_url)
+    if not video_url == '':
+        videoUrls.add(video_url)
+    tweet = (tweet_time_id, handle, username, postdate, text, reply_cnt, like_cnt, retweet_cnt, img_url, video_url)
+    # int_reply_cnt = 0 if reply_cnt == '' else int(reply_cnt.replace(',',''))
+    # int_like_cnt = 0 if like_cnt == '' else int(like_cnt.replace(',',''))
+    # int_retweet_cnt = 0 if retweet_cnt == '' else int(retweet_cnt.replace(',',''))
+    # Sql_Tweet(handle).insert_tweet(tweet_time_id, handle, username,  postdate, text, reply_cnt, like_cnt, retweet_cnt, img_url, video_url)
     return tweet
 
 
-# # application variables
-# user = input('username: ')
-# my_password = getpass('Password: ')
-# search_term = input('search term: ')
-
-# create instance of web driver
-
-
-driver.get("https://twitter.com/")
-driver.delete_all_cookies()
-for cook in cookieData:
-    try:
-        cook.pop('sameSite')
-    except:
-        pass
-    driver.add_cookie(cook)
-
+if cookieData:
+    driver.get("https://twitter.com/")
+    driver.delete_all_cookies()
+    for cook in cookieData:
+        try:
+            cook.pop('sameSite')
+        except:
+            pass
+        driver.add_cookie(cook)
 driver.get("https://twitter.com/{}".format(twerID))
-driver.maximize_window()
+# driver.maximize_window()
 
 # # navigate to login screen
 # driver.get('https://www.twitter.com/login')
@@ -158,7 +182,7 @@ driver.maximize_window()
 # password = driver.find_element_by_xpath('//input[@name="session[password]"]')
 # password.send_keys(my_password)
 # password.send_keys(Keys.RETURN)
-sleep(3)
+sleep(2)
 
 # # find search input and search for term
 # search_input = driver.find_element_by_xpath('//input[@aria-label="Search query"]')
@@ -174,16 +198,24 @@ data = []
 tweet_ids = set()
 last_position = driver.execute_script("return window.pageYOffset;")
 scrolling = True
+newest_date = int(Sql_Tweet(twerID).get_newest_timestamp(twerID))
+breakCount = 0
 
 while scrolling:
     page_cards = driver.find_elements_by_xpath('//div[@data-testid="tweet"]')
     for card in page_cards[-15:]:
         tweet = get_tweet_data(card)
+        if tweet[0] is None:
+            continue
+        curr_date = int(tweet[0])
         if tweet:
             tweet_id = ''.join(tweet)
             if tweet_id not in tweet_ids:
                 tweet_ids.add(tweet_id)
-                data.append(tweet)
+                if curr_date <= newest_date:
+                    breakCount += 1
+                # data.append(tweet)
+                Sql_Tweet(twerID).insert_tweet_from_tuple(tweet)
 
     scroll_attempt = 0
     while True:
@@ -193,7 +225,15 @@ while scrolling:
         body.send_keys(Keys.PAGE_DOWN)
         sleep(2)
         curr_position = driver.execute_script("return window.pageYOffset;")
-        print(curr_position)
+        # print(curr_position)
+        a = len(imgUrls)
+        if not a == imgcc:
+            print('\rimgs: {0}\t\tposition: {1}'.format(a, curr_position), end='breakCount:{}'.format(breakCount))
+            imgcc = a
+            # print(breakCount)
+        if breakCount >= 4:
+            scrolling = False
+            break
         if last_position == curr_position:
             scroll_attempt += 1
 
@@ -210,11 +250,29 @@ while scrolling:
 # close the web driver
 driver.close()
 
-for i in imgUrls:
-    get_down_img(i, twerID)
+print('Find {} pics'.format(len(imgUrls)))
+for i, v in enumerate(imgUrls):
+    get_down_img(v, twerID)
+    print('\rDownloading... [{}]img'.format(i), end='')
 
-with open('{}.csv'.format(twerID), 'w', newline='', encoding='utf-8') as f:
-    header = ['UserName', 'Handle', 'Timestamp', 'Text', 'Emojis', 'Comments', 'Likes', 'Retweets', 'imgs']
-    writer = csv.writer(f)
-    writer.writerow(header)
-    writer.writerows(data)
+print('Find {} videos'.format(len(videoUrls)))
+for i, v in enumerate(videoUrls):
+    cmd = 'youtube-dl {} -o ./{}/{}.mp4'.format(v, twerID, v[-19:])
+    os.system(cmd)
+    print('\rDownloading... [{}]video'.format(i), end='')
+
+if not CloudName == '':
+    cmd = 'rclone copy ./{0} {1}:/uploads/twitter/{2}/ -P'.format(twerID, CloudName, twerID)
+    print(cmd)
+    os.system(cmd)
+    # os.remove(path + fin_name + '.mp4')
+
+# [print(i) for i in videoUrls]
+# for i in data:
+#     Sql_Tweet.insert_tweet(i)
+
+# with open('{}.csv'.format(twerID), 'w', newline='', encoding='utf-8') as f:
+#     header = ['Handle', 'UserName', 'Timestamp', 'Text', 'Emojis', 'Comments', 'Likes', 'Retweets', 'imgs', 'video']
+#     writer = csv.writer(f)
+#     writer.writerow(header)
+#     writer.writerows(data)
