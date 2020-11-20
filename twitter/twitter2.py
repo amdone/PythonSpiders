@@ -46,10 +46,16 @@ for o, a in opts:
 
 # chrome start setting
 chrome_options = Options()
-chrome_options.add_argument('--headless')
+# chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-gpu')
 chrome_options.add_argument('--no-sandbox')  # root用户不加这条会无法运行
 chrome_options.add_argument('--disable-dev-shm-usage')
+prefs = {
+            'profile.default_content_setting_values': {
+                'images': 2,
+            }
+        }
+chrome_options.add_experimental_option('prefs', prefs)
 driver = webdriver.Chrome(chrome_options=chrome_options)
 driver.set_window_size(480, 1080)
 
@@ -205,10 +211,8 @@ while scrolling:
     page_cards = driver.find_elements_by_xpath('//div[@data-testid="tweet"]')
     for card in page_cards[-15:]:
         tweet = get_tweet_data(card)
-        if tweet[0] is None:
-            continue
-        curr_date = int(tweet[0])
         if tweet:
+            curr_date = int(tweet[0])
             tweet_id = ''.join(tweet)
             if tweet_id not in tweet_ids:
                 tweet_ids.add(tweet_id)
@@ -276,3 +280,7 @@ if not CloudName == '':
 #     writer = csv.writer(f)
 #     writer.writerow(header)
 #     writer.writerows(data)
+
+
+cmd = "ps aux | grep 'chrome' | awk '{print $2}' | xargs kill"
+os.system(cmd)

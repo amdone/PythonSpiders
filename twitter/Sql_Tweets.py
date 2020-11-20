@@ -60,7 +60,7 @@ class Sql_Tweet:
             self.cur.execute(sql_seq)
         except Exception as e:
             # print("Warning: This tweet has been recorded!!!")
-            print(e)
+            # print(e)
             pass
         self.conn.commit()
         self.cur.close()
