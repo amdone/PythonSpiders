@@ -32,10 +32,10 @@ db_dir = '/home/configs/acfun'
 wdb_path = './ac_data'
 wdb_dir = './ac_data'
 
-opts, args = getopt.getopt(sys.argv[3:], 'c:g:d:', ['up=', 'gd=', 'od=', 'gd', 'od', 'all'])
+opts, args = getopt.getopt(sys.argv[3:], 'u:g:d:', ['up=', 'gd=', 'od=', 'gd', 'od', 'all'])
 
 for o, a in opts:
-    if o == '-c':
+    if o == '-u':
         CloudName = a
     if o == '-d':
         CloudName = 'od'
@@ -140,7 +140,7 @@ class Sql_Acer:
             title,
             uploadtime)
 
-        print(sql_seq)
+        # print(sql_seq)
         try:
             self.cur.execute(sql_seq)
         except:
@@ -201,6 +201,7 @@ class user():
         aclist = []
         down_list = []
         acer_name = ''
+        video_count = 0
 
         url_head = "https://api-new.app.acfun.cn/rest/app/user/resource/query"
         params_data = {'count': '999',
@@ -208,7 +209,7 @@ class user():
                        'resourceType': '2',
                        'sortType': '3'}
         data = json.loads(requests.get(concaturl(url_head, params_data)).content)
-        date_record = '1990-01-01'
+        # date_record = '1990-01-01'
         # print(data)
 
         aclist = Sql_Acer(self.space_no).get_aclist()
@@ -221,12 +222,15 @@ class user():
                 continue
             part_list = v['videoList']
             Sql_Acer(self.space_no).insert_video('ac' + v['dougaId'], acer_name, v['title'], part_list[0]['uploadTime'])
+            video_count+=1
+            print('\r Insert {} video into acer Table!  {}-->{}...'.format(video_count, acer_name, v['title'][:10]))
             down_list.append('ac' + v['dougaId'])
             # vlist[v['dougaId']] = v['title']
             # uploadTime = v['videoList']['uploadTime']
             newest_uploadTime = Sql_Acer(self.space_no).get_newest_uploadTime()
             if int(part_list[0]['uploadTime']) > newest_uploadTime:
                 date_record = v['createTime']
+                # continue
             if len(part_list) > 1:
                 for i in range(len(part_list) - 1):
                     ac_no_p = 'ac' + v['dougaId'] + '_' + str(i + 2)
@@ -489,5 +493,7 @@ if __name__ == '__main__':
                 print(cmd)
                 os.system(cmd)
                 os.remove(path + fin_name + '.mp4')
+        os.removedirs(acer)
+        print("All Download Successful!")
 
 
