@@ -86,8 +86,12 @@ def concaturl(head, params):
     return head + url[:-1]
 
 
+def ft(longlonglongsequence: str):
+    return longlonglongsequence.replace('\n', '</br>').replace("'", "''")
+
+
 def formatfilename(file_name: str):
-    file_name = file_name.replace('?', '_问号_').replace('？', '_问号_').replace('：', '_冒号_')
+    file_name = file_name.replace('?', '_问号_')
     restr = re.findall(r'[^\*"/:?\\|<>]', file_name, re.S)
     return ''.join(restr)
 
@@ -117,7 +121,7 @@ class Sql_Acer:
             self.cur = self.conn.cursor()
             self.cur.execute('''create table acer(acno varchar(20) primary key, acerid integer,
                              acname varchar(20),  title varchar(40),
-                             uploadtime integer)
+                             uploadtime integer, cover varchar(100))
                              ''')
             self.conn.commit()
             self.cur.close()
@@ -128,17 +132,18 @@ class Sql_Acer:
         # try:
         #     self.cur.execute('''create table acer(acno varchar(20) primary key, acerid integer,
         #                      acname varchar(20),  title varchar(40),
-        #                      uploadtime integer)
+        #                      uploadtime integer, cover varchar(100))
         #                      ''')
         # except:
         #     pass
 
-    def insert_video(self, acno, name, title, uploadtime):
-        sql_seq = '''insert into acer(acerid, acno, acname, title, uploadtime)values({},'{}','{}','{}',{})'''.format(
+    def insert_video(self, acno, name, title, uploadtime, cover_url):
+        sql_seq = '''insert into acer(acerid, acno, acname, title, uploadtime, cover)values({},'{}','{}','{}',{},'{}')'''.format(
             self.acerid,
             acno, name,
             title,
-            uploadtime)
+            uploadtime,
+            cover_url)
 
         # print(sql_seq)
         try:
@@ -191,6 +196,17 @@ class Sql_Acer:
         self.conn.close()
         return result[0]
 
+    def get_cover(self, acno):
+        sql_seq = "select cover,title from acer where acno='{}' ".format(acno)
+        self.cur.execute(sql_seq)
+        # self.conn.commit()
+        result = self.cur.fetchone()
+        if result is None:
+            return ''
+        self.cur.close()
+        self.conn.close()
+        return result[0], result[1]
+
 
 class user():
     def __init__(self, space_no):
@@ -209,7 +225,7 @@ class user():
                        'resourceType': '2',
                        'sortType': '3'}
         data = json.loads(requests.get(concaturl(url_head, params_data)).content)
-        # date_record = '1990-01-01'
+        date_record = '1990-01-01'
         # print(data)
 
         aclist = Sql_Acer(self.space_no).get_aclist()
@@ -221,8 +237,10 @@ class user():
                 print(redstr.format('ac' + v['dougaId'] + ' already downloaded!'))
                 continue
             part_list = v['videoList']
-            Sql_Acer(self.space_no).insert_video('ac' + v['dougaId'], acer_name, v['title'], part_list[0]['uploadTime'])
-            video_count+=1
+            cover_url = v['coverUrl']
+            Sql_Acer(self.space_no).insert_video('ac' + v['dougaId'], acer_name, v['title'], part_list[0]['uploadTime'],
+                                                 cover_url)
+            video_count += 1
             print('\r Insert {} video into acer Table!  {}-->{}...'.format(video_count, acer_name, v['title'][:10]))
             down_list.append('ac' + v['dougaId'])
             # vlist[v['dougaId']] = v['title']
@@ -235,8 +253,9 @@ class user():
                 for i in range(len(part_list) - 1):
                     ac_no_p = 'ac' + v['dougaId'] + '_' + str(i + 2)
                     Sql_Acer(self.space_no).insert_video(ac_no_p, acer_name, v['title'],
-                                                         part_list[0]['uploadTime'])
+                                                         part_list[0]['uploadTime'], cover_url)
                     down_list.append(ac_no_p)
+            # print(v['coverUrl'])
             # print(v['dougaId'])
             # print(v['title'])
             # print(v['description'])
@@ -263,6 +282,22 @@ class user():
         print("Acer is " + data['feedList'][0]['user']['userName'])
         return acer_name
 
+    def down_cover(self, acno, dir_path):
+        kw = {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.89 Safari/537.36'
+        }
+        url, video_name = Sql_Acer(self.space_no).get_cover(acno)
+        if url == '':
+            return
+        r = requests.get(url, headers=kw)
+        if '.' not in url.split('/')[-1].split('?')[0]:
+            img_type = 'jpg'
+        else:
+            img_type = url.split('.')[-1].split('?')[0]
+        img_name = video_name + '_' + acno + '.' + img_type
+        with open(dir_path + img_name, 'wb') as fd:
+            fd.write(r.content)
+
 
 class m3u8_url():
     def __init__(self, f_url):
@@ -281,6 +316,9 @@ class m3u8_url():
             num += 1
             Label[num] = quality['qualityLabel']
         print(Label)
+        video_60fps = ''
+        if Label[1] == '2160P' and 'P60' in Label[2]:
+            video_60fps = Label[1]
         # choice = int(input("请选择清晰度: "))
         # print((name,video_info[choice - 1]['url'],path))
         # Download(name + '_{}'.format(Label[1]), video_info[0]['url'], path).download_with_m3dl()
@@ -288,7 +326,7 @@ class m3u8_url():
         if '_' in self.url:
             name = name + '_P' + self.url[-1:]
             # print(name)
-        return formatfilename(name), video_info[0]['url'], path
+        return formatfilename(name), video_info[0]['url'], path, video_60fps
         # Download(name + '[{}]'.format(Label[choice]), video_info[choice - 1]['url'], path).start_download()
 
 
@@ -463,8 +501,12 @@ if __name__ == '__main__':
     # vlist = user(acer_no).get_vlist()
     if IsAcno:
         # m3u8_url(url_syntax.format(ac_no)).get_m3u8()
-        fin_name, fin_url, fin_path = m3u8_url(url_syntax.format(ac_no)).get_m3u8()
+        fin_name, fin_url, fin_path, url_60fps = m3u8_url(url_syntax.format(ac_no)).get_m3u8()
         M3u8Download(fin_url, fin_name)
+        if not url_60fps == '':
+            keyInput = input('Find a 1080P60 video, Download it? (y/n)')
+            if keyInput == 'y':
+                M3u8Download(fin_url, fin_name.join('_60FPS'))
         if not path == '':
             shutil.move('{}.mp4'.format(fin_name), fin_path + '{}.mp4'.format(fin_name))
     else:
@@ -474,6 +516,8 @@ if __name__ == '__main__':
         try:
             if not os.path.isdir(path + acer):
                 os.makedirs(path + acer)
+            if not os.path.isdir(path + acer + '/cover'):
+                os.makedirs(path + acer + '/cover')
         except:
             pass
         else:
@@ -481,19 +525,34 @@ if __name__ == '__main__':
         print(path)
         for i, v in enumerate(down_videos_list):
             print(str(i) + ' ---> ' + v)
-            fin_name, fin_url, fin_path = m3u8_url(url_syntax.format(v)).get_m3u8()
+            fin_name, fin_url, fin_path, url_60fps = m3u8_url(url_syntax.format(v)).get_m3u8()
             print(fin_name)
             M3u8Download(fin_url, fin_name)
+            user(acer_no).down_cover(v, path + 'cover/')
+            if not url_60fps == '':
+                M3u8Download(fin_url, fin_name.join('_60FPS'))
             # if not path == '':
             #     shutil.move('{}.mp4'.format(fin_name), fin_path + '{}.mp4'.format(fin_name))
             if not CloudName == '':
                 if acer == '':
                     acer = 'unknown'
-                cmd = 'rclone copy {0}"{1}" {2}:/uploads/acfun/{3}/ -P'.format(path, fin_name + '.mp4', CloudName, acer)
+                cmd = "rclone copy '{0}{1}' {2}:/uploads/acfun/{3}/ -P".format(path, fin_name + '.mp4', CloudName, acer)
                 print(cmd)
                 os.system(cmd)
                 os.remove(path + fin_name + '.mp4')
-        os.removedirs(acer)
+                if not url_60fps == '':
+                    cmd = "rclone copy '{0}{1}' {2}:/uploads/acfun/{3}/ -P".format(path,
+                                                                                   fin_name.join('_60FPS') + '.mp4',
+                                                                                   CloudName, acer)
+                    print(cmd)
+                    os.system(cmd)
+                    os.remove(path + fin_name.join('_60FPS') + '.mp4')
+        if not CloudName == '':
+            if acer == '':
+                acer = 'unknown'
+            cmd = "rclone copy '{0}/cover/' {2}:/uploads/acfun/{3}/cover/ -P".format(path, CloudName, acer)
+            print(cmd)
+            os.system(cmd)
+            os.removedirs(path + '/cover')
+        os.removedirs(path)
         print("All Download Successful!")
-
-
