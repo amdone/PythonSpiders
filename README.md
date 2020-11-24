@@ -1,7 +1,7 @@
 # PythonSpiders
 some net-spider in python
 
-## 边学习边编程中……不一定啥时候能写完
+## 半成品
 ## 主要运行环境为linux命令行界面
 ## one command then download all videos of video_uper
 ## 一键下载博主所有博文(包括视频，图片)
