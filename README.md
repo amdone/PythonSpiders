@@ -30,25 +30,30 @@ some net-spider in python
 
 #### acfun2.py
 
-类似命令python3 acfun2.py <uid> ./ -u <drivername>
+类似命令:
+```
+python3 acfun2.py <uid> ./ -u <drivername>
+```
 
 uid就是up主的空间号，分享该up主主页的链接中就有
 
 ./ 下载到./目录下
 
-<drivername> 云盘的配置名
+```<drivername>``` 云盘的配置名
 
 #### twitter2.py
 
+```
 python twitter2.py <id>
+```
 
-将<id>设置为要爬取的推主的id
+将```<id>```设置为要爬取的推主的id
 
 然后运行即可
 
 如果需要上传至云盘
 
-运行： python twitter2.py <id> -u <drivername>
+运行： ```python twitter2.py <id> -u <drivername>```
 
 #### jjgirls.py
 
@@ -57,6 +62,6 @@ python twitter2.py <id>
 
 #### bili.py
 
-python bili.py <space_no>
+```python bili.py <space_no>```
 
 
