@@ -15,6 +15,7 @@ from selenium.common.exceptions import NoSuchElementException
 
 # create some value for easy use:
 imgUrls = set()
+imgsDict = {}
 videoUrls = set()
 twerID = ""
 twerName = ""
@@ -46,7 +47,7 @@ for o, a in opts:
 
 # chrome start setting
 chrome_options = Options()
-# chrome_options.add_argument('--headless')
+chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-gpu')
 chrome_options.add_argument('--no-sandbox')  # root用户不加这条会无法运行
 chrome_options.add_argument('--disable-dev-shm-usage')
@@ -94,8 +95,33 @@ def get_down_img(url, imgs_dirname):
         img_name = './' + imgs_dirname + '/' + url[-37:-22] + '.jpg'
         with open(img_name, 'wb') as fd:
             fd.write(r.content)
-            fd.close()
     except:
+        pass
+
+
+def down_img(url, img_name):
+    os.makedirs('./' + twerID + '/', exist_ok=True)
+    try:
+        kw = {
+            'authority': 'pbs.twimg.com',
+            'method': 'GET',
+            'scheme': 'https',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'accept-encoding': 'gzip, deflate, br',
+            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'sec-fetch-dest': 'document',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'none',
+            'upgrade-insecure-requests': '1',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.89 Safari/537.36'
+        }
+        r = requests.get(url, headers=kw)
+        final_filename = './' + twerID + '/' + img_name
+        #print(final_filename)
+        with open(final_filename, 'wb') as fd:
+            fd.write(r.content)
+    except Exception as e:
+        print(e)
         pass
 
 
@@ -138,9 +164,11 @@ def get_tweet_data(card):
                 i.get_attribute('src').startswith('https://pbs.twimg.com/media/')]
     # img_urls = [img_url_fomat(i)+'@' for i in img_urls if img_url_fomat(i)]
     img_url = ''.join([img_url_fomat(i) + '@' for i in img_urls if img_url_fomat(i)])
-    for i in img_urls:
-        if img_url_fomat(i):
-            imgUrls.add(img_url_fomat(i))
+    for i, v in enumerate(img_urls):
+        if img_url_fomat(v):
+            # imgUrls.add(img_url_fomat(i))
+            imgsDict.setdefault(tweet_time_id+str(i+1), img_url_fomat(v))
+
 
     # get a string of all emojis contained in the tweet
     """Emojis are stored as images... so I convert the filename, which is stored as unicode, into 
@@ -230,7 +258,7 @@ while scrolling:
         sleep(2)
         curr_position = driver.execute_script("return window.pageYOffset;")
         # print(curr_position)
-        a = len(imgUrls)
+        a = len(imgsDict)
         if not a == imgcc:
             print('\rimgs: {0}\t\tposition: {1}'.format(a, curr_position), end='breakCount:{}'.format(breakCount))
             imgcc = a
@@ -254,14 +282,21 @@ while scrolling:
 # close the web driver
 driver.close()
 
-print('Find {} pics'.format(len(imgUrls)))
-for i, v in enumerate(imgUrls):
-    get_down_img(v, twerID)
+print('Find {} pics'.format(len(imgsDict)))
+# for i, v in enumerate(imgUrls):
+#     get_down_img(v, twerID)
+#     print('\rDownloading... [{}]img'.format(i), end='')
+
+for i, v in enumerate(imgsDict):
+    img_filename = '{}_{}_{}.jpg'.format(v[2:8], v[-1], imgsDict[v][-36:-21])
+    down_img(imgsDict[v], img_filename)
+    # print(imgsDict[v])
+    # print(img_filename)
     print('\rDownloading... [{}]img'.format(i), end='')
 
 print('Find {} videos'.format(len(videoUrls)))
 for i, v in enumerate(videoUrls):
-    cmd = 'youtube-dl {} -o ./{}/{}.mp4'.format(v, twerID, v[-19:])
+    cmd = '/usr/local/bin/youtube-dl {} -o ./{}/{}.mp4'.format(v, twerID, v[-19:])
     os.system(cmd)
     print('\rDownloading... [{}]video'.format(i), end='')
 
